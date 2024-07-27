@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Clumio restore and scan with guard duty lambda deployment
+Resources:
+  List:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: clumio_ec2_list_backups
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: clumio_ec2_list_backups.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: clumio_ec2_list_backups
+      TracingConfig:
+        Mode: Active
+  Restore:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: clumio_ec2_restore_guardduty
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: clumio_ec2_restore_guardduty.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: clumio_ec2_restore_guardduty
+      TracingConfig:
+        Mode: Active
+  Task:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: clumio_retrieve_task
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: clumio_retrieve_task.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: clumio_retrieve_task
+      TracingConfig:
+        Mode: Active
+  Scan:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: aws_guardduty_start_scan
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: aws_guardduty_start_scan.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: aws_guardduty_start_scan
+      TracingConfig:
+        Mode: Active
+  CheckScan:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: aws_guardduty_check_scan_status
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: aws_guardduty_check_scan_status.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: aws_guardduty_check_scan_status
+      TracingConfig:
+        Mode: Active
+  Response:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: aws_guardduty_scan_response
+      Runtime: python3.12
+      Timeout: 60
+      Role: arn:aws:iam::323724565630:role/323724565630-admin-role
+      Handler: aws_guardduty_scan_response.lambda_handler
+      Code:
+        S3Bucket: my_cft_deployment_s3_bucket
+        S3Key: clumio_scan_restore_guardduty.zip
+      Description: aws_guardduty_scan_response
+      TracingConfig:
+        Mode: Active

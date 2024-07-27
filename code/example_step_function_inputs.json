@@ -1,0 +1,20 @@
+{
+  "bear": "eyJh...replace with your Clumio API token",
+  "source_account": "111222333444",
+  "source_region": "us-east-2",
+  "search_direction": "before",
+  "search_day_offset": 0,
+  "target_account": "555666777888",
+  "target_region": "us-east-1",
+  "target_az": "us-east-1a",
+  "target_iam_instance_profile_name": "",
+  "target_key_pair_name": "zxxz-323724565630-ec2-key",
+  "target_security_group_native_ids": [
+    "sg-0546facc66de14dd3"
+  ],
+  "target_subnet_native_id": "subnet-0340ef13d020c1ee1",
+  "target_vpc_native_id": "vpc-0a4cde925ca123ff2",
+  "target_kms_key_native_id": "",
+  "target_role_arn": "arn:aws:iam::555666777888:role/<local iam role that can assume ou role>",
+  "debug": 0
+}

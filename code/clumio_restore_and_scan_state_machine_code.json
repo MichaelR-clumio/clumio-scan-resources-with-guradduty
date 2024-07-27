@@ -1,0 +1,339 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "Input Simulator",
+  "States": {
+    "Input Simulator": {
+      "Type": "Pass",
+      "Next": "ec2_list_backup",
+      "Parameters": {
+        "bear.$": "$$.Execution.Input.bear",
+        "source_account.$": "$$.Execution.Input.source_account",
+        "source_region.$": "$$.Execution.Input.source_region",
+        "search_direction.$": "$$.Execution.Input.search_direction",
+        "search_day_offset.$": "$$.Execution.Input.search_day_offset",
+        "debug.$": "$$.Execution.Input.debug"
+      }
+    },
+    "ec2_list_backup": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:clumio_ec2_list_backups:$LATEST"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Next": "Choice",
+      "OutputPath": "$.Payload"
+    },
+    "Choice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.status",
+          "NumericEquals": 200,
+          "Next": "Launch process per backup record"
+        }
+      ],
+      "Default": "No Backup Records"
+    },
+    "No Backup Records": {
+      "Type": "Wait",
+      "Seconds": 5,
+      "End": true
+    },
+    "Launch process per backup record": {
+      "Type": "Map",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "Pass list backup inputs",
+        "States": {
+          "Pass list backup inputs": {
+            "Type": "Pass",
+            "Next": "ec2_restore_guardduty",
+            "Parameters": {
+              "bear.$": "$$.Execution.Input.bear",
+              "target_account.$": "$$.Execution.Input.target_account",
+              "target_region.$": "$$.Execution.Input.target_region",
+              "target_az.$": "$$.Execution.Input.target_az",
+              "target_iam_instance_profile_name.$": "$$.Execution.Input.target_iam_instance_profile_name",
+              "target_key_pair_name.$": "$$.Execution.Input.target_key_pair_name",
+              "target_security_group_native_ids.$": "$$.Execution.Input.target_security_group_native_ids",
+              "target_subnet_native_id.$": "$$.Execution.Input.target_subnet_native_id",
+              "target_vpc_native_id.$": "$$.Execution.Input.target_vpc_native_id",
+              "target_kms_key_native_id.$": "$$.Execution.Input.target_kms_key_native_id",
+              "debug.$": "$$.Execution.Input.debug",
+              "record.$": "$"
+            }
+          },
+          "ec2_restore_guardduty": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:clumio_ec2_restore_guardduty:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Next": "Check EC2 restore status",
+            "OutputPath": "$.Payload"
+          },
+          "Check EC2 restore status": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.status",
+                "NumericEquals": 200,
+                "Next": "Pass restore ec2 inputs"
+              }
+            ],
+            "Default": "Failed"
+          },
+          "Pass restore ec2 inputs": {
+            "Type": "Pass",
+            "Next": "clumio_retrieve_task",
+            "Parameters": {
+              "inputs.$": "$.inputs",
+              "debug.$": "$$.Execution.Input.debug",
+              "bear.$": "$$.Execution.Input.bear"
+            }
+          },
+          "clumio_retrieve_task": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:clumio_retrieve_task:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Next": "Check Clumio Restore Task Status",
+            "OutputPath": "$.Payload"
+          },
+          "Check Clumio Restore Task Status": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.status ",
+                "NumericEquals": 205,
+                "Next": "Delay_30"
+              },
+              {
+                "Variable": "$.status",
+                "NumericEquals": 200,
+                "Next": "Pass start guard duty scan inputs"
+              }
+            ],
+            "Default": "Failed"
+          },
+          "Pass start guard duty scan inputs": {
+            "Type": "Pass",
+            "Next": "aws_guardduty_start_scan",
+            "Parameters": {
+              "target_region.$": "$$.Execution.Input.target_region",
+              "target_account.$": "$$.Execution.Input.target_account",
+              "inputs.$": "$.inputs",
+              "target_role_arn.$": "$$.Execution.Input.target_role_arn"
+            }
+          },
+          "Delay_30": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "Re:Pass restore ec2 inputs"
+          },
+          "Re:Pass restore ec2 inputs": {
+            "Type": "Pass",
+            "Next": "clumio_retrieve_task",
+            "Parameters": {
+              "inputs.$": "$.inputs",
+              "debug.$": "$$.Execution.Input.debug",
+              "bear.$": "$$.Execution.Input.bear"
+            }
+          },
+          "Failed": {
+            "Type": "Pass",
+            "End": true
+          },
+          "aws_guardduty_start_scan": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:aws_guardduty_start_scan:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Next": "Check Guard Duty Start Scan Status",
+            "OutputPath": "$.Payload"
+          },
+          "Check Guard Duty Start Scan Status": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.status",
+                "NumericLessThan": 300,
+                "Next": "Pass check guard duty scan status inputs"
+              }
+            ],
+            "Default": "Failed"
+          },
+          "Pass check guard duty scan status inputs": {
+            "Type": "Pass",
+            "Next": "aws_guardduty_check_scan_status",
+            "Parameters": {
+              "target_region.$": "$$.Execution.Input.target_region",
+              "target_account.$": "$$.Execution.Input.target_account",
+              "inputs.$": "$.inputs",
+              "target_role_arn.$": "$$.Execution.Input.target_role_arn"
+            }
+          },
+          "aws_guardduty_check_scan_status": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:aws_guardduty_check_scan_status:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "Next": "Check Guard Duty Running Scan Status",
+            "OutputPath": "$.Payload"
+          },
+          "Check Guard Duty Running Scan Status": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.status",
+                "NumericEquals": 205,
+                "Next": "Delay_60"
+              },
+              {
+                "Variable": "$.status",
+                "NumericEquals": 200,
+                "Next": "Wait for End Scan Loop"
+              }
+            ],
+            "Default": "Failed"
+          },
+          "Delay_60": {
+            "Type": "Wait",
+            "Seconds": 60,
+            "Next": "Re:Pass check guard duty scan status inputs"
+          },
+          "Re:Pass check guard duty scan status inputs": {
+            "Type": "Pass",
+            "Next": "aws_guardduty_check_scan_status",
+            "Parameters": {
+              "target_region.$": "$$.Execution.Input.target_region",
+              "target_account.$": "$$.Execution.Input.target_account",
+              "inputs.$": "$.inputs",
+              "target_role_arn.$": "$$.Execution.Input.target_role_arn"
+            }
+          },
+          "Wait for End Scan Loop": {
+            "Type": "Wait",
+            "Seconds": 5,
+            "Next": "Pass guard duty scan results inputs"
+          },
+          "Pass guard duty scan results inputs": {
+            "Type": "Pass",
+            "Next": "aws_guardduty_scan_response",
+            "Parameters": {
+              "target_region.$": "$$.Execution.Input.target_region",
+              "inputs.$": "$.inputs",
+              "target_role_arn.$": "$$.Execution.Input.target_role_arn",
+              "target_account.$": "$$.Execution.Input.target_account"
+            }
+          },
+          "aws_guardduty_scan_response": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "Payload.$": "$",
+              "FunctionName": "arn:aws:lambda:us-east-1:323724565630:function:aws_guardduty_scan_response:$LATEST"
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 1,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "End": true,
+            "OutputPath": "$.Payload"
+          }
+        }
+      },
+      "ItemsPath": "$.records",
+      "Next": "Map Output"
+    },
+    "Map Output": {
+      "Type": "Wait",
+      "Seconds": 1,
+      "End": true
+    }
+  }
+}
