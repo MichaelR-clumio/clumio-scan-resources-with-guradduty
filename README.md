@@ -18,7 +18,7 @@
 # Requirements: 
 #  Secure account to deploy resources for scanning 
 #  Local account to install lambdas and step function
-#  Role is secure account that can descibe and delete EC2 scanned resources and initiate guardduty scans
+#  Role in secure account that can descibe and delete EC2 scanned resources and initiate guardduty scans
 #  Role in local account that can assume role in secure account
 #  
 #  S3 bucket in same region where stepfunction/lambdas are to be deployed 
@@ -30,34 +30,35 @@
 # Create a new step function.  select on the code option in the builder.  copy and paste code from your modified step function json file.
 #
 # Modify inputs json "example_step_function_inputs.json" to include your data
-#  - "source_account": "111222333444",  account where data was backed up from
-#  - "source_region": "us-east-2",      region where data was backed up from
-#   NEXT Two values during which backups (by time) you want to use
-#  - "search_day_offset": 0,  - Point in time to use a reference for the search.  0 means start with most recent backups, 1 means start with backup from 1 day ago, etc      
-#  - "search_direction": "before",  - direction to search.  before or after - before searches for dates at or older then the point of refence.  after searches for dates newer then the point of reference
+#  - "source_account"  account where data was backed up from
+#  - "source_region"     region where data was backed up from
+#
+#   NEXT Two values determine which backups (by time) you want to use
+#  - "search_day_offset":   - Point in time to use as a reference for the search.  0 means start with most recent backups, 1 means start with backup from 1 day ago, etc      
+#  - "search_direction":   - direction to search.  before or after - before searches for dates at or older then the point of reference.  after searches for dates newer then the point of reference
 
 # Target values are configuraiton or infrastuructor values in the secure account
 
-#  - "target_account": "555666777888",
-#  "target_region": "us-east-1",
-#  "target_az": "us-east-1a",
-#  "target_iam_instance_profile_name": "",
-#  "target_key_pair_name": "zxxz-323724565630-ec2-key",
-#  "target_security_group_native_ids": [    "sg-0546facc66de14dd3 ],
-#  "target_subnet_native_id": "subnet-0340ef13d020c1ee1",
-#  "target_vpc_native_id": "vpc-0a4cde925ca123ff2",
-#  "target_kms_key_native_id": "",
-#  "target_role_arn": "arn:aws:iam::555666777888:role/<local iam role that can assume ou role>",
-
+#  - "target_account": 
+#  "target_region": 
+#  "target_az": 
+#  "target_iam_instance_profile_name": 
+#  "target_key_pair_name": 
+#  "target_security_group_native_ids": 
+#  "target_subnet_native_id":
+#  "target_vpc_native_id": 
+#  "target_kms_key_native_id": 
+#  "target_role_arn": role in secure account that can be assumeed by local/lambda role,
+#
 # Execute the step function passing it the contents of the modified inputs json.
-
+#
 # Lambda function code
+#
+# aws_guardduty_check_scan_status.py - checks if scan has completed
+# aws_guardduty_scan_response.py - does final processing after scan completes
+# aws_guardduty_start_scan.py - starts guardduty scan
+# clumio_ec2_list_backups.py - generates a list of records for all backups that are to be scanned
+# clumio_ec2_restore_guardduty.py - restores an ec2 instnace in the secure account
+# clumio_retrieve_task.py - waits for restore to finish
 
-# aws_guardduty_check_scan_status.py
-# aws_guardduty_scan_response.py
-# aws_guardduty_start_scan.py
-# clumio_ec2_list_backups.py
-# clumio_ec2_restore_guardduty.py
-# clumio_retrieve_task.py
-
-# clumio_sdk_v8c.py - this is the "helper" sdk
+# clumio_sdk_v9.py - the "helper" sdk
